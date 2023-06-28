@@ -232,7 +232,7 @@ There is a file named [ci-cd-codepipeline.cfn.yml](https://github.com/nguyentron
     
   GitHubToken:
     ConstraintDescription: You must enter a GitHub personal access token
-    
+
   GitHubUser:
     
   CodeBuildDockerImage:
@@ -284,4 +284,7 @@ The *buildspec.yml* file specifies the different phases of a build, such as an i
 - *post-build* phase: Push the Docker image to the ECR repo, update the EKS cluster's kubeconfig, and apply the configuration defined in the simple_jwt_api.yml to the cluster.
 You can see each command being executed in the CodeBuild log console when you trigger a build.
 
-### 4. Troubleshoot
+### 4. Trigger the Build
+Try the steps below to test the automatic builds:
+
+Push a commit - To check if the pipeline works, Make a git push to your repository to trigger an automatic build
