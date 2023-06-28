@@ -9,6 +9,9 @@ def hello_world():
 @APP.route('/native')
 def native():
     return 'Hello, native'
+@APP.route('/banner')
+def banner():
+    return 'Hello, banner'
 
 
 if __name__ == '__main__':
