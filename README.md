@@ -59,7 +59,7 @@ Therefore, having your CodeBuild service communicate with the EKS cluster will r
 Let's create an IAM role for authenticating the Codebuild. Creating an IAM role has two components:
 
 #### 2.1. Create a Trust relationship
-We can define the [Trust relationship](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-user.html) in the form of a JSON file. However, we have given this file, [trust.json](https://github.com/nguyentrongphuc/Document/blob/master/Repositories/Kubernetes/Containerization/trust.json), for your convenience. At this point, it is essential to understand two terms:
+We can define the [Trust relationship](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-user.html) in the form of a JSON file. However, we have given this file, [trust.json](https://github.com/nguyentrongphuc/aws_pipeline/blob/master/trust.json), for your convenience. At this point, it is essential to understand two terms:
 
 - Trusting account: the resource owner (EKS cluster). In our example, it is YOU because you've created the EKS cluster. We will mention the details of the Trusting account in the trust.json.
 - Trusted account: the entity/service who will assume the role to need access to the resource (EKS cluster). In our example, it is the CodeBuild service.
@@ -94,8 +94,7 @@ Replace the <ACCOUNT_ID> with your actual AWS account ID. Reference: Creating a 
 
 #### 2.2. Create the Policy
 Policy is also a JSON file where we will define the set of permissible actions that the Codebuild can perform. A policy can have multiple actions, though we need just one for this example: `eks:Describe`
-
-We have given you a policy file, [iam-role-policy.json](https://github.com/nguyentrongphuc/Document/blob/master/Repositories/Kubernetes/Containerization/iam-role-policy.json), containing the following permissible action:
+We have given you a policy file, [iam-role-policy.json](https://github.com/nguyentrongphuc/aws_pipeline/blob/master/iam-role-policy.json), containing the following permissible action:
 
 {
  "Version": "2012-10-17",
@@ -157,7 +156,6 @@ kubectl get -n kube-system configmap/aws-auth -o yaml > /tmp/aws-auth-patch.yml
 # Mac - I want to save aws-auth-patch.yml in <current_directory>/images/aws-auth-patch.yml
 kubectl get -n kube-system configmap/aws-auth -o yaml > ./images/aws-auth-patch.yml
 
-
 # Windows users can create the aws-auth-patch.yml file in the current working directory
 kubectl get -n kube-system configmap/aws-auth -o yaml > aws-auth-patch.yml
 ```
@@ -179,7 +177,7 @@ and add the following group in the **data → mapRoles** section of this file:
    	username: build     
 ``` 
 
-Don't forget to replace the <ACCOUNT_ID> with your AWS account Id. Do not copy-paste the code snippet from above. Instead, look at this [sample aws-auth-patch.yml](https://github.com/nguyentrongphuc/Document/blob/master/Repositories/Kubernetes/Containerization/examples/Final_Pipeline/aws-auth-patch.yml) file and the snapshot below to stay careful with the indentations.
+Don't forget to replace the <ACCOUNT_ID> with your AWS account Id. Do not copy-paste the code snippet from above. Instead, look at this [sample aws-auth-patch.yml](https://github.com/nguyentrongphuc/aws_pipeline/blob/master/aws-auth-patch.yml) file and the snapshot below to stay careful with the indentations.
 
 ![image](images/maproles.png)
 File **aws-auth-patch.yml** in the editor. Notice the indentation of the highlighted part.
@@ -206,3 +204,84 @@ In case of the following error, re-run the above three steps beginning from the 
 Error from server (Conflict): Operation cannot be fulfilled on configmaps "aws-auth": the object has been modified; please apply your changes to the latest version and try again
 
 ## Deploy to EKS cluster
+
+Deployment to Kubernetes using CodePipeline and CodeBuild
+
+You will now create a pipeline that watches your Github and deploys your application using CodePipeline and CodeBuild. When changes are pushed to the repo, it will build a new image and deploy it to your EKS cluster. Follow the steps below to complete your project.
+
+### 1. Generate a Github access token
+A Github access token will allow CodePipeline to monitor when a repo is changed. A token is analogous to your Github password and can be generated [here](https://github.com/settings/tokens/). You should generate the token with full control of private repositories, as shown in the image below. Be sure to save the token somewhere that is secure.
+
+![image](images/access-token.png)
+Generate GitHub Access Token with full control of private repositories
+
+### 2. Create Codebuild and CodePipeline resources using CloudFormation template
+#### 2.1. Modify the template
+
+There is a file named [ci-cd-codepipeline.cfn.yml](https://github.com/nguyentrongphuc/aws_pipeline/blob/master/ci-cd-codepipeline.cfn.yml) provided in your starter repo. This is the template file that will create your CodePipeline and CodeBuild resources Open this file, and go to the 'Parameters' section. Ensure that the following values are used for the parameter variables:
+
+```yml
+  EksClusterName:
+    Default: eksctl-demo
+
+  GitSourceRepo:
+    Default: aws_pipeline
+    
+  GitBranch:
+    Default: master
+    
+  GitHubToken:
+    ConstraintDescription: You must enter a GitHub personal access token
+    
+  GitHubUser:
+    
+  CodeBuildDockerImage:
+    Default: aws/codebuild/standard:4.0
+    
+  KubectlRoleName:
+    Default: UdacityFlaskDeployCBKubectlRole
+```
+
+#### 2.2. Review the resources
+Review the resources that will be created using this ci-cd-codepipeline.cfn.yml file. The Cloudformation template file ci-cd-codepipeline.cfn.yml will create the following resources:
+
+- ECR repository to store your Docker image.
+- S3 bucket to store your Pipeline artifacts
+- A custom provisioning logic
+- A Lambda function and its IAM role
+- CodeBuild and CodePipeline resources and their IAM roles
+
+#### 2.3. Create Stack
+Use the AWS web-console to create a stack for CodePipeline using the CloudFormation template file ci-cd-codepipeline.cfn.yml. Go to the CloudFormation service in the AWS console. Press the Create Stack button. It will make you go through the following three steps -
+
+##### 1. Specify template - Choose the options "Template is ready" and "Upload a template file" to upload the template file ci-cd-codepipeline.cfn.yml. Click the 'Next' button. 
+![image](images/cloudformation_createstack.jpeg)
+
+##### 2. Specify stack details - Give the stack a name. You will have a few fileds auto-populated from the parameters used in the ci-cd-codepipeline.cfn.yml file. Fill in your GitHub access token generated in the previous step. Ensure that the Github repo name, IAM role, and EKS cluster name matches with the ones you created earlier.
+
+
+### 3. How does CodeBuild know the build steps?
+After the successful creation of the stack, you can see the CodeBuild and CodePipeline resources get created for you. **When the build will trigger, Codebuild will execute the commands/steps mentioned in the buildspec.yml file.**
+
+`A buildspec.yml contains a collection of build commands that CodeBuild uses to run a build.`
+
+The CodeBuild expects the build specification in the buildspec.yml. This file must be placed in the root of your source directory (Github repo).
+
+
+#### 3.1. Configuring buildspec.yml
+
+In the buildspec.yml file, use the same (or within one minor version difference) KUBECTL version as you've used while creating an EKS cluster. You can run `kubectl version --short --client` in your local terminal to check the version locally. Change the version in the buildspec.yml file with a specific version of your choice. Refer to the [AWS docs](https://docs.aws.amazon.com/eks/latest/userguide/install-kubectl.html) or [k8s](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/) docs to see the available versions for Linux machines (our Codebuild will use Linux containers internally to run build commands!).
+
+**Note** - You must use a kubectl version within one minor version difference of your Amazon EKS cluster control plane. For example, a 1.22 kubectl client works with Kubernetes 1.21, 1.22, and 1.23 clusters.
+
+
+#### 3.2. Details of the buildspec.yml
+The *buildspec.yml* file specifies the different phases of a build, such as an install, pre-build, build, and post-build. Each phase has a set of commands to be automatically executed by CodeBuild.
+
+- *install* phase: Install Python, pip, kubectl, and update the system path
+- *pre-build* phase: Log into the ECR repo where the Codebuils will push the Docker image.
+- *build* phase: Build a Docker image
+- *post-build* phase: Push the Docker image to the ECR repo, update the EKS cluster's kubeconfig, and apply the configuration defined in the simple_jwt_api.yml to the cluster.
+You can see each command being executed in the CodeBuild log console when you trigger a build.
+
+### 4. Troubleshoot
