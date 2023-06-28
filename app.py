@@ -7,7 +7,7 @@ def hello_world():
     return 'Hello, World from Flask! - nguyentrong phuc\n'
 
 @APP.route('/native')
-def hello_world():
+def native():
     return 'Hello, native'
 
 
