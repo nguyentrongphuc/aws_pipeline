@@ -1,14 +1,14 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: simple-flask-deployment
+  name: monetize-demo-deployment
   labels:
-    app: simple-flask
+    app: monetize-demo
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: simple-flask
+      app: monetize-demo
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -17,12 +17,12 @@ spec:
   template:
     metadata:
       labels:
-        app: simple-flask
+        app: monetize-demo
     spec:
       containers:
-      - name: simple-flask
+      - name: monetize-demo
         # image: IMAGE_TAG
-        image: sudkul/simple-flask
+        image: nguyentrongphuc/monetize-demo:linux-amd64
         securityContext:
           privileged: false
           readOnlyRootFilesystem: false
